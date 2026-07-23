@@ -1,162 +1,124 @@
-# Homelab Documentation — Índice Maestro
+# Homelab — Servidor aranet (OMV)
 
-**Servidor principal:** aranet (OMV) — 192.168.10.114 / .116  
-**Subnet router Tailscale:** Inspiron master — 192.168.10.111  
-**Laptop personal:** Inspiron-5520 (Ubuntu 26.04) — corre Hermes, sin Docker  
-**Fecha base:** 2026-07-22
+Servidor casero en laptop Dell Inspiron de 20+ años con **3.1 GB RAM** corriendo OpenMediaVault (Debian).
+Funciona como NAS, nube privada, DNS, monitor y más — todo auto-hospedado y bajo tu control.
 
----
-
-## 📦 Servicios en aranet (OMV)
-
-| Servicio | Puerto(s) | Estado | Descripción |
-|----------|-----------|--------|-------------|
-| **Nextcloud** | 8085 (HTTP) | ✅ | Nube privada: archivos, Office, Calendario, Contactos |
-| **Collabora Online** | 9980 (interno) | ✅ | Motor Office (Word/Excel/PPT en navegador) |
-| **Immich** | 2283 | ✅ | Backup fotos + galería (tipo Google Photos) — **SIN ML** por RAM |
-| **Pi-hole** | 53 (DNS), 8080 (admin) | ✅ | Bloqueo anuncios/telemetría red completa |
-| **Portainer** | 9000 (HTTP), 9443 (HTTPS) | ✅ | Gestión visual contenedores |
-| **Heimdall** | 8083 | ✅ | Dashboard enlaces (página de inicio) |
-| **WordPress** | 8084 | ⏸️ Parado | Blog/sitio (parado p/ ahorrar RAM) |
-| **Beszel** | 8090 | ✅ | Monitor ligero (agente + hub) |
-| **Glances** | 61208 | ✅ | Monitor completo (web) |
-| **Samba** | 445, 139 | ✅ | Compartir archivos en LAN |
+**IP:** 192.168.10.114 (.116) | **Hostname:** aranet | **SO:** OMV (Debian 12)
+**Fecha base:** 2026-07-23
 
 ---
 
-## 🔗 Acceso remoto — Tailscale (VPN privada)
+## 📦 Servicios
 
-**Sin abrir puertos en el router.** Usa WireGuard + DERP relays.
-
-| Dispositivo | Hostname Tailscale | Red anunciada |
-|-------------|-------------------|---------------|
-| Inspiron master (subnet router) | `master` | `192.168.10.0/24` |
-| aranet (OMV) | `aranet-nextcloud` | (cliente, usa red del master) |
-| Laptop personal | `laptop-personal` | (cliente) |
-
-> Ver guía completa: [tailscale-setup.md](tailscale-setup.md)
-
----
-
-## 💾 Estructura de datos (dónde vive qué)
-
-| Dato | Ubicación | Disco |
-|------|-----------|-------|
-| Nextcloud (archivos, DB, config) | `/opt/nc/` | SSD sistema |
-| Immich fotos | `/srv/dev-disk-by-uuid-3cbf.../immich/library` | HDD datos (219 GB) |
-| Immich DB (PostgreSQL) | `/opt/immich/postgres` | SSD sistema |
-| Pi-hole config | `/opt/pihole/` | SSD sistema |
-| Portainer data | `/docker/volumes/portainer_data` | SSD sistema |
-| WordPress | `/opt/wordpress/` | SSD sistema |
-| Beszel/Glances/Heimdall | `/opt/<servicio>/` | SSD sistema |
-
-> **Regla:** Fotos/pesos grandes → HDD datos (`/srv/...`). Bases de datos activas → SSD (`/opt/...`).
+| Servicio | Puerto | Stack | Estado | Descripción |
+|----------|--------|-------|--------|-------------|
+| **Nextcloud** | 8085 | `/opt/nc` | ✅ | Nube privada: archivos, calendario, contactos |
+| **Collabora** | 9980 | `/opt/nc` | ✅ | Office en navegador (integrado en Nextcloud) |
+| **Immich** | 2283 | `/opt/immich` | ✅ | Backup fotos + galería (SIN ML por RAM) |
+| **Pi-hole** | 53, 8080 | `/opt/pihole` | ✅ | Bloqueo anuncios/telemetría de toda la LAN |
+| **File Browser** | 8082 | Portainer #2 | ✅ | Gestor archivos web |
+| **Heimdall** | 8083 | Portainer #3 | ✅ | Dashboard de enlaces |
+| **WordPress** | 8084 | Portainer #4 | ⏸️ Parado | Blog (parado para ahorrar RAM) |
+| **Beszel** | 8090 | Portainer #8 | ⚠️ | Monitor (agente con KEY placeholder) |
+| **Glances** | 61208 | Portainer #7 | ✅ | Monitor completo |
+| **Syncthing** | 8384 | huérfano | ⏸️ Exited | Sync P2P (sin compose) |
+| **Portainer** | 9000, 9443 | — | ✅ | Gestión visual contenedores |
+| **Samba** | 445, 139 | OMV | ✅ | Compartir archivos en LAN |
 
 ---
 
-## 🐳 Contenedores — Patrones y comandos
+## 🗂️ Estructura del repo
 
-### Redes
-- `nextcloud-net` (172.24.0.0/16) — Nextcloud + MariaDB + Collabora (IPs fijas)
-- `bridge` (default) — Collabora también conectado aquí p/ callback WOPI
-- `pihole_default` — Pi-hole solo
-
-### IPs fijas (nextcloud-net)
-| Contenedor | IP |
-|------------|-----|
-| nextcloud_db | 172.24.0.3 |
-| nextcloud | 172.24.0.4 |
-| collabora | 172.24.0.2 |
-
-### Comandos útiles
-```bash
-# Ver todo
-docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-
-# Logs
-docker logs -f <contenedor>
-
-# Reiniciar servicio
-docker restart <contenedor>
-
-# Parar/Arrancar stack completo
-cd /opt/nc && docker compose stop|start
-cd /opt/immich && docker compose stop|start
-
-# Ver consumo RAM/CPU
-docker stats --no-stream
-
-# Limpiar imágenes no usadas
-docker image prune -a
+```
+homelab/
+├── README.md                      # Este índice
+├── .gitignore                     # Protege .env reales y datos
+├── services/                      # Un compose por servicio
+│   ├── nextcloud/                 # Nextcloud + MariaDB + Collabora (IPs fijas)
+│   ├── immich/                    # Immich sin ML (RAM-constrained)
+│   ├── pihole/                    # Pi-hole DNS + GUI
+│   ├── filebrowser/               # File Browser
+│   ├── heimdall/                  # Dashboard
+│   ├── wordpress/                 # WordPress + MariaDB (parado)
+│   ├── beszel/                    # Beszel hub + agent
+│   ├── glances/                   # Glances monitor
+│   └── syncthing/                 # Syncthing (compose de rescate)
+├── docs/                          # Guías
+│   ├── tailscale-setup.md         # Acceso remoto VPN
+│   ├── balenaetcher-install.md    # Grabar USB/SD
+│   └── disaster-recovery.md       # Cómo resucitar TODO
+└── backup/                        # Scripts de respaldo
+    ├── backup-homelab.sh          # Backup completo (compose + configs + BD)
+    └── restore-homelab.sh         # Restore rápido (1 servicio o todo)
 ```
 
 ---
 
-## 🔧 Mantenimiento rutinario
+## 🔐 Secrets
 
-| Qué | Cuándo | Cómo |
-|-----|--------|------|
-| **Actualizar OMV** | Cuando OMV notifique | GUI OMV → Actualizaciones → Aplicar (reinicia Docker) |
-| **Actualizar contenedores** | Mensual | Portainer → Stacks → Update → Pull + Deploy |
-| **Backup Nextcloud** | Semanal | `cd /opt/nc && docker exec -u www-data nextcloud php occ maintenance:backup` + copiar `/opt/nc` |
-| **Backup Immich DB** | Semanal | `docker exec immich_postgres pg_dump -U postgres immich > immich_$(date +%F).sql` |
-| **Limpieza Docker** | Mensual | `docker system prune -a --volumes` (cuidado con volumes) |
-| **Verificar disco** | Mensual | `df -h /opt /srv` — alerta si > 80% |
-| **Verificar RAM** | Semanal | `free -h` — alerta si disponibles < 500 MB |
+**NUNCA se commitean `.env` reales.** El repo tiene `.env.example` con `CHANGE_ME_*`.
+Tus passwords reales viven en:
+- `/opt/nc/.env`, `/opt/immich/.env`, `/opt/pihole/.env` (en el server)
+- Un gestor de contraseñas (Bitwarden/KeePass) para respaldo fuera del server
 
 ---
 
-## ⚠️ RAM en aranet — Realidad (3.1 GB total)
+## 💾 Backup y Restore
 
-| Servicio | RAM típica (idle) |
-|----------|-------------------|
-| Immich (server+postgres+redis) | ~1.1 GB |
-| Collabora | ~160 MB |
-| Nextcloud + MariaDB | ~200 MB |
-| Pi-hole | ~30 MB |
-| Portainer | ~55 MB |
-| Beszel + Glances + Heimdall | ~150 MB |
-| **Total usado** | **~2.2 GB** |
-| **Disponible** | **~980 MB** |
+```bash
+# Hacer backup (corre en la laptop, respalda aranet por SSH)
+./backup/backup-homelab.sh
 
-**Regla de oro:** Si subes MILES de fotos a Immich de golpe → para Collabora (`docker stop collabora`, libera ~615 MB). Día a día no hace falta.
+# Restaurar un servicio
+./backup/restore-homelab.sh nextcloud
 
----
+# Restaurar todo
+./backup/restore-homelab.sh all
 
-## 📚 Documentación detallada
+# Listar backups
+./backup/restore-homelab.sh list
+```
 
-| Tema | Archivo |
-|------|---------|
-| Tailscale (acceso remoto) | [tailscale-setup.md](tailscale-setup.md) |
-| balenaEtcher (grabar USB/SD) | [balenaetcher-install.md](balenaetcher-install.md) |
-| Nextcloud + Collabora (detalles, hairpin, WOPI) | `~/.hermes/skills/devops/homelab-docker-services/references/nextcloud-collabora.md` |
-| Immich (sin ML, RAM) | skill `homelab-docker-services` → sección "Immich" |
-| Pi-hole (gravity 3M, custom.list) | skill `homelab-docker-services` → sección "Pi-hole" |
-| Portainer (deploy via Upload, no Web Editor) | skill `homelab-docker-services` → sección "Portainer" |
-| File Browser (permisos, db) | skill `homelab-docker-services` → sección "File Browser" |
-| SSH recovery (si se muere sshd) | skill `homelab-docker-services` → references/ssh-recovery.md |
+Ver guía completa de disaster recovery: **docs/disaster-recovery.md**
 
 ---
 
-## 🚀 Próximos pasos / Pendientes
+## 🚀 Despliegue rápido (nuevo server)
 
-- [ ] Completar auth Tailscale en aranet (link pendiente)
-- [ ] Completar auth Tailscale en laptop personal (repo noble)
-- [ ] Probar acceso Nextcloud/Immich desde celular via Tailscale
-- [ ] Configurar backup automático (rsync a disco externo o nube)
-- [ ] Evaluar mover Immich a Inspiron master si RAM sigue justa
-- [ ] Limpiar stacks fantasmas en Portainer (#4 WordPress viejo, #5 Nextcloud viejo)
+```bash
+# 1. Clona el repo
+git clone https://github.com/enriq007e2-bit/homelab.git
+cd homelab
 
----
+# 2. Por cada servicio: copia .env.example → .env, rellena, docker compose up -d
+cp services/nextcloud/.env.example /opt/nc/.env && nano /opt/nc/.env
+cp services/nextcloud/docker-compose.yml /opt/nc/ && cd /opt/nc && docker compose up -d
 
-## 🤝 Cómo trabajamos (recordatorio)
-
-1. **Tú decides, yo ejecuto** — Tú das la visión/prioridad; yo hago el trabajo técnico.
-2. **Estabilidad > novedad** — No toques lo que funciona sin razón.
-3. **Documentamos todo** — Cada aventura queda en skills y .md para no repetir.
-4. **Comandos cortos o archivos** — SSH multi-línea se rompe; mejor `.sh` o `.yml` subidos.
-5. **Seguridad ante todo** — Tailscale antes que abrir puertos; rotar passwords tras compartirlos.
+# 3. Restaura datos desde backup
+./backup/restore-homelab.sh all
+```
 
 ---
 
-*Última actualización: 2026-07-22 — Sesión completa: Nextcloud limpio + Office + Immich + balenaEtcher + Tailscale docs*
+## 🌐 Acceso
+
+| Servicio | LAN | Tailscale |
+|----------|-----|-----------|
+| Nextcloud | http://192.168.10.114:8085 | igual (vía subnet router) |
+| Immich | http://192.168.10.114:2283 | igual |
+| Pi-hole | http://192.168.10.114:8080/admin | — |
+| Portainer | https://192.168.10.114:9443 | igual |
+| Heimdall | http://192.168.10.114:8083 | igual |
+
+Ver **docs/tailscale-setup.md** para acceso remoto sin abrir puertos.
+
+---
+
+## ⚠️ RAM (3.1 GB total)
+
+~2.2 GB usados, **~980 MB libres**. Regla: si subes miles de fotos a Immich de golpe,
+para Collabora (`docker stop collabora`, libera ~615 MB).
+
+---
+
+*Mantén este README actualizado. Última revisión: 2026-07-23*

@@ -1,0 +1,18 @@
+# File Browser — Gestor de archivos web (navega /home/ia-enrique del server)
+# Puerto: 8082
+# Ubicación en server: Portainer stack #2
+# NOTA: monta /home/ia-enrique como /srv dentro del contenedor
+
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: filebrowser
+    restart: unless-stopped
+    ports:
+      - 8082:80
+    volumes:
+      - /home/ia-enrique:/srv
+      - /opt/filebrowser/data:/data
+    environment:
+      - TZ=America/Mexico_City
+      - FB_DATA=/data

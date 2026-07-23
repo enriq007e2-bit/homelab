@@ -1,0 +1,17 @@
+# Heimdall — Dashboard de enlaces (página de inicio del homelab)
+# Puerto: 8083
+# Ubicación en server: Portainer stack #3
+
+services:
+  heimdall:
+    image: linuxserver/heimdall:latest
+    container_name: heimdall
+    restart: unless-stopped
+    ports:
+      - 8083:80
+    volumes:
+      - /opt/heimdall:/config
+    environment:
+      - TZ=America/Mexico_City
+      - PUID=1000
+      - PGID=1000

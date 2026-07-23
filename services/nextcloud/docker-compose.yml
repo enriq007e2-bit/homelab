@@ -1,6 +1,7 @@
-# Nextcloud + MariaDB + Collabora — Stack unificado para aranet
+# Nextcloud + MariaDB + Collabora — Stack unificado (REAL en aranet)
 # Puerto web: 8085, Collabora: 9980
 # Red dedicada: nextcloud-net (172.24.0.0/16) con IPs fijas
+# Ubicación en server: /opt/nc/docker-compose.yml
 
 services:
   nextcloud_db:

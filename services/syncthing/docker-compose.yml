@@ -1,0 +1,23 @@
+# Syncthing — Sincronización de archivos (P2P, tipo Dropbox autohospedado)
+# Estado en aranet: EXISTED (contenedor huérfano, NO tiene compose en /opt ni Portainer)
+# Montajes: /data/syncthing/config:/config, /data/syncthing/data1:/data1, /data/syncthing/data2:/data2
+# Para resucitar: crea este compose y haz `docker compose up -d`
+# PUERTOS: 8384 (GUI), 22000 (sync tcp), 21027 (discovery udp)
+
+services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    restart: unless-stopped
+    ports:
+      - "8384:8384"
+      - "22000:22000/tcp"
+      - "21027:21027/udp"
+    volumes:
+      - /data/syncthing/config:/config
+      - /data/syncthing/data1:/data1
+      - /data/syncthing/data2:/data2
+    environment:
+      - TZ=America/Mexico_City
+      - PUID=1000
+      - PGID=1000

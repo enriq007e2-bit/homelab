@@ -1,0 +1,33 @@
+# WordPress — Blog/sitio (parado por defecto para ahorrar RAM en aranet 3.1GB)
+# Puerto: 8084
+# Ubicación en server: Portainer stack #4
+# Para usarlo: docker compose up -d (o deploy en Portainer)
+
+services:
+  wordpress_db:
+    image: mariadb:11
+    container_name: wordpress_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: "${WP_DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${WP_ROOT_PASSWORD}"
+    volumes:
+      - /opt/wordpress/db:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    depends_on:
+      - wordpress_db
+    ports:
+      - "8084:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress_db:3306
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: "${WP_DB_PASSWORD}"
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - /opt/wordpress/html:/var/www/html

@@ -1,0 +1,25 @@
+# Pi-hole — Bloqueo de anuncios/telemetría para TODA la LAN
+# DNS: 53 (tcp+udp), GUI admin: 8080 (bind a IP LAN para no chocar con OMV :80)
+# Ubicación en server: /opt/pihole/docker-compose.yml
+# NOTA: el host liberó :53 (systemd-resolved stub desactivado)
+
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "192.168.10.114:8080:80/tcp"
+    environment:
+      TZ: "America/Mexico_City"
+      WEBPASSWORD: "${PIHOLE_PASSWORD}"          # genera: openssl rand -base64 12 | tr -d '/+='
+      PIHOLE_DNS_1: "1.1.1.1"
+      PIHOLE_DNS_2: "8.8.8.8"
+      FTLCONF_dns_listeningMode: "all"
+    volumes:
+      - /opt/pihole/etc-pihole:/etc/pihole
+      - /opt/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    restart: unless-stopped
