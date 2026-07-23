@@ -6,7 +6,7 @@
 #   ./restore-homelab.sh nextcloud     # solo Nextcloud
 #   ./restore-homelab.sh immich        # solo Immich
 #   ./restore-homelab.sh all           # todos los servicios
-#   ./restore-homelab.sh list           # lista backups disponibles
+#   ./restore-homelab.sh list          # lista backups disponibles
 #
 # El backup debe estar en /opt/homelab-backups/ en el server aranet.
 #
@@ -31,57 +31,50 @@ fi
 echo "=== Restaurando '$TARGET' desde: $LATEST ==="
 
 # Extrae el backup a /tmp/hb-restore en el server
-ssh "$REMOTE" bash -c "'
-  rm -rf /tmp/hb-restore && mkdir -p /tmp/hb-restore
-  cd /tmp/hb-restore && tar xzf ${LATEST}
-  echo EXTRAIDO
-'"
+ssh "$REMOTE" "rm -rf /tmp/hb-restore && mkdir -p /tmp/hb-restore && cd /tmp/hb-restore && tar xzf $LATEST && echo EXTRAIDO"
 
 restore_service() {
   local svc="$1"
   echo "--- Restaurando $svc ---"
   case "$svc" in
     nextcloud)
-      ssh "$REMOTE" bash -c "'
+      ssh "$REMOTE" bash <<'EOF'
         cd /tmp/hb-restore
-        # compose
-        cp -r hb/opt/nc/* /opt/nc/ 2>/dev/null
-        # config Nextcloud
+        cp -r hb/opt/nc/. /opt/nc/ 2>/dev/null
         cp hb-config/nextcloud/config.php /opt/nc/html/config/ 2>/dev/null
         cd /opt/nc && docker compose up -d
-      '"
+EOF
       ;;
     immich)
-      ssh "$REMOTE" bash -c "'
+      ssh "$REMOTE" bash <<'EOF'
         cd /tmp/hb-restore
-        cp -r hb/opt/immich/* /opt/immich/ 2>/dev/null
+        cp -r hb/opt/immich/. /opt/immich/ 2>/dev/null
         cd /opt/immich && docker compose up -d
-        # restore BD
-        docker exec -i immich_postgres psql -U postgres immich < /tmp/hb-restore/hb-db/immich.sql 2>/dev/null || echo "BD ya presente o vacía"
-      '"
+        docker exec -i immich_postgres psql -U postgres immich < /tmp/hb-restore/hb-db/immich.sql 2>/dev/null || echo "BD ya presente o vacia"
+EOF
       ;;
     pihole)
-      ssh "$REMOTE" bash -c "'
+      ssh "$REMOTE" bash <<'EOF'
         cd /tmp/hb-restore
-        cp -r hb/opt/pihole/* /opt/pihole/ 2>/dev/null
+        cp -r hb/opt/pihole/. /opt/pihole/ 2>/dev/null
         cp -r hb-config/pihole/etc-pihole /opt/pihole/ 2>/dev/null
         cp -r hb-config/pihole/etc-dnsmasq.d /opt/pihole/ 2>/dev/null
         cd /opt/pihole && docker compose up -d
-      '"
+EOF
       ;;
     wordpress)
-      ssh "$REMOTE" bash -c "'
+      ssh "$REMOTE" bash <<'EOF'
         cd /tmp/hb-restore
-        cp -r hb/portainer/compose/4/* /opt/wordpress/ 2>/dev/null || true
+        cp -r hb/portainer/compose/4/. /opt/wordpress/ 2>/dev/null || true
         cd /opt/wordpress && docker compose up -d 2>/dev/null || echo "Deploy en Portainer stack #4"
-      '"
+EOF
       ;;
     beszel)
-      ssh "$REMOTE" bash -c "'
+      ssh "$REMOTE" bash <<'EOF'
         cd /tmp/hb-restore
         cp -r hb-config/beszel/data /opt/beszel/ 2>/dev/null
         echo "Re-deploy beszel en Portainer stack #8 con KEY real"
-      '"
+EOF
       ;;
     *)
       echo "Servicio '$svc' no reconocido. Opciones: nextcloud, immich, pihole, wordpress, beszel, all"
