@@ -1,0 +1,76 @@
+# Nextcloud + MariaDB + Collabora — Stack unificado para aranet
+# Puerto web: 8085, Collabora: 9980
+# Red dedicada: nextcloud-net (172.24.0.0/16) con IPs fijas
+
+services:
+  nextcloud_db:
+    image: mariadb:11
+    container_name: nextcloud_db
+    restart: unless-stopped
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD}"
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: ncuser
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - /opt/nc/db:/var/lib/mysql
+    networks:
+      nextcloud-net:
+        ipv4_address: 172.24.0.3
+
+  nextcloud:
+    image: nextcloud:31
+    container_name: nextcloud
+    restart: unless-stopped
+    depends_on:
+      - nextcloud_db
+    ports:
+      - "8085:80"
+    extra_hosts:
+      - "office.casa:172.24.0.2"
+    environment:
+      MYSQL_HOST: nextcloud_db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: ncuser
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+      NEXTCLOUD_ADMIN_USER: admin
+      NEXTCLOUD_ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      NEXTCLOUD_TRUSTED_DOMAINS: "192.168.10.114 192.168.10.116 office.casa"
+    volumes:
+      - /opt/nc/html:/var/www/html
+      - /opt/nc/data:/var/www/html/data
+    networks:
+      nextcloud-net:
+        ipv4_address: 172.24.0.4
+
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    restart: unless-stopped
+    cap_add:
+      - MKNOD
+    ports:
+      - "9980:9980"
+    extra_hosts:
+      - "office.casa:172.24.0.4"
+    environment:
+      username: "admin"
+      password: "${COLLABORA_PASSWORD}"
+      extra_params: "--o:ssl.enable=false --o:ssl.termination=false"
+      aliasgroup1: "http://192.168.10.114:8085"
+      domain: "office\\.casa"
+    networks:
+      nextcloud-net:
+        ipv4_address: 172.24.0.2
+      bridge: {}
+
+networks:
+  nextcloud-net:
+    name: nextcloud-net
+    ipam:
+      config:
+        - subnet: 172.24.0.0/16
+  bridge:
+    name: bridge
+    external: true

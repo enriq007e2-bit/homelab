@@ -1,0 +1,33 @@
+# Secretos reales - NUNCA commitear
+.env
+*.env
+*.key
+*.pem
+*.p12
+*.crt
+*.sql
+*.dump
+*.backup
+*.tar.gz
+
+# Datos y volúmenes
+/data
+/postgres
+/library
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Temporales
+*.tmp
+*.temp
